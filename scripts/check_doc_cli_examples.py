@@ -192,38 +192,63 @@ def _validate_script_lines(
             command += stripped[:-1] + " "
             continue
         command += stripped
-        try:
-            lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|")
-            lexer.whitespace_split = True
-            lexer.commenters = "#"
-            tokens = list(lexer)
-        except ValueError:
-            tokens = command.replace("\\", " ").split()
-        segment: list[str] = []
-        for token in [*tokens, ";"]:
-            if token not in (";", "&&", "||", "|", "&"):
-                segment.append(token)
-                continue
-            script = _python_script_operand(segment)
-            segment = []
-            if script is None:
-                continue
-            if script.startswith("./"):
-                script = script[2:]
-            if script.startswith(("/", "~", "$", "<", "..")) or not script.endswith(".py"):
-                continue
-            if not (script.startswith("scripts/") or "/scripts/" in script):
-                continue
-            resolved_root = root.resolve()
-            resolved_script = (root / script).resolve()
-            if not resolved_script.is_relative_to(resolved_root):
-                findings.append(Finding(str(path), command_line, f"script escapes root: {script}"))
-                continue
-            if not resolved_script.is_file():
-                findings.append(
-                    Finding(str(path), command_line, f"script does not exist: {script}")
-                )
+        _validate_script_command(path, command, command_line, findings, root)
         command = ""
+    if command:
+        # The block ended on a trailing continuation; still validate it.
+        _validate_script_command(path, command, command_line, findings, root)
+
+
+def _validate_script_command(
+    path: Path, command: str, command_line: int, findings: list[Finding], root: Path
+) -> None:
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|")
+        lexer.whitespace_split = True
+        lexer.commenters = "#"
+        tokens = list(lexer)
+    except ValueError:
+        tokens = command.replace("\\", " ").split()
+    segment: list[str] = []
+    for token in [*tokens, ";"]:
+        if token not in (";", "&&", "||", "|", "&"):
+            segment.append(token)
+            continue
+        script = _python_script_operand(segment)
+        segment = []
+        if script is None:
+            continue
+        if script.startswith("./"):
+            script = script[2:]
+        if script.startswith(("/", "~", "$", "<", "..")) or not script.endswith(".py"):
+            continue
+        if not (script.startswith("scripts/") or "/scripts/" in script):
+            continue
+        resolved_root = root.resolve()
+        resolved_script = (root / script).resolve()
+        if not resolved_script.is_relative_to(resolved_root):
+            findings.append(Finding(str(path), command_line, f"script escapes root: {script}"))
+            continue
+        if not resolved_script.is_file():
+            findings.append(Finding(str(path), command_line, f"script does not exist: {script}"))
+
+
+_UV_RUN_VALUE_OPTIONS = frozenset(
+    {
+        "--with",
+        "--project",
+        "--directory",
+        "--python",
+        "-p",
+        "--extra",
+        "--group",
+        "--env-file",
+        "--package",
+        "--from",
+        "--index",
+        "--with-requirements",
+    }
+)
 
 
 def _python_script_operand(tokens: list[str]) -> str | None:
@@ -247,14 +272,14 @@ def _python_script_operand(tokens: list[str]) -> str | None:
     while index < len(tokens) and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", tokens[index]):
         index += 1
     if tokens[index : index + 2] == ["uv", "run"]:
-        index = next(
-            (
-                pos
-                for pos in range(index + 2, len(tokens))
-                if re.fullmatch(r"python(?:3(?:\.\d+)?)?", tokens[pos])
-            ),
-            len(tokens),
-        )
+        index += 2
+        while index < len(tokens) and tokens[index].startswith("-"):
+            if tokens[index] in _UV_RUN_VALUE_OPTIONS:
+                index += 2
+            else:
+                index += 1
+        if index < len(tokens) and tokens[index].endswith(".py"):
+            return tokens[index]
     if index >= len(tokens) or not re.fullmatch(r"python(?:3(?:\.\d+)?)?", tokens[index]):
         return None
     index += 1
@@ -556,6 +581,13 @@ def _git_status_snapshot(root: Path) -> str | None:
     return proc.stdout
 
 
+def _is_root_doc(path: Path, root: Path) -> bool:
+    try:
+        return path.relative_to(root).as_posix() in ROOT_DOC_TARGETS
+    except ValueError:
+        return False
+
+
 def run_validate(targets: list[str], en_ja_pairs: list[str], root: Path = ROOT) -> list[Finding]:
     findings: list[Finding] = []
     for path in _expand_targets(root, targets):
@@ -564,7 +596,7 @@ def run_validate(targets: list[str], en_ja_pairs: list[str], root: Path = ROOT) 
             continue
         for path_, blocks in scan_targets([path]):
             validate_target(path_, blocks, findings, root=root)
-        if path.relative_to(root).as_posix() in ROOT_DOC_TARGETS:
+        if _is_root_doc(path, root):
             validate_unmarked_script_paths(path, findings, root=root)
     validate_en_ja_pairs(en_ja_pairs, findings, root=root)
     return findings

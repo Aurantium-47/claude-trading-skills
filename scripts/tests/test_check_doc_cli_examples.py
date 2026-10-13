@@ -451,6 +451,33 @@ def test_unmarked_gate_handles_python_options_and_shell_wrappers(tmp_path):
     ]
 
 
+def test_unmarked_gate_checks_script_directly_after_uv_run(tmp_path):
+    scripts = tmp_path / "skills" / "demo" / "scripts"
+    scripts.mkdir(parents=True)
+    (scripts / "ok.py").write_text("pass\n", encoding="utf-8")
+    (tmp_path / "CLAUDE.md").write_text(
+        "```bash\n"
+        "uv run skills/nope/scripts/x.py --flag\n"
+        "uv run skills/demo/scripts/ok.py --project-root .\n"
+        "uv run --with pkg skills/demo/scripts/ok.py\n"
+        "uv run --project . --with=pkg skills/demo/scripts/ok.py\n"
+        "uv run --with pkg skills/nope/scripts/y.py\n"
+        "uv run --project . skills/nope/scripts/z.py\n"
+        "uv run python3 scripts/missing-py.py\n"
+        "uv run pytest skills/demo/scripts/tests\n"
+        "uv run ruff check scripts/\n"
+        "```\n",
+        encoding="utf-8",
+    )
+    findings = gate.run_validate(["CLAUDE.md"], [], root=tmp_path)
+    assert [(f.line_no, f.message) for f in findings] == [
+        (2, "script does not exist: skills/nope/scripts/x.py"),
+        (6, "script does not exist: skills/nope/scripts/y.py"),
+        (7, "script does not exist: skills/nope/scripts/z.py"),
+        (8, "script does not exist: scripts/missing-py.py"),
+    ]
+
+
 def test_unmarked_gate_resolves_in_root_parent_segments(tmp_path):
     scripts = tmp_path / "skills" / "demo" / "scripts"
     scripts.mkdir(parents=True)
@@ -497,6 +524,27 @@ def test_unmarked_gate_reports_each_command_start_line(tmp_path):
         (2, "script does not exist: skills/one/scripts/a.py"),
         (4, "script does not exist: skills/two/scripts/b.py"),
     ]
+
+
+def test_unmarked_gate_validates_trailing_continuation_command(tmp_path):
+    (tmp_path / "CLAUDE.md").write_text(
+        "```bash\npython3 skills/x/scripts/missing.py \\\n```\n",
+        encoding="utf-8",
+    )
+    findings = gate.run_validate(["CLAUDE.md"], [], root=tmp_path)
+    assert [(f.line_no, f.message) for f in findings] == [
+        (2, "script does not exist: skills/x/scripts/missing.py"),
+    ]
+
+
+def test_run_validate_absolute_target_outside_root_does_not_crash(tmp_path):
+    root = tmp_path / "root"
+    root.mkdir()
+    outside = tmp_path / "outside.md"
+    outside.write_text("```bash\npython3 skills/x/scripts/missing.py\n```\n", encoding="utf-8")
+    findings = gate.run_validate([str(outside)], [], root=root)
+    # Outside the repo root: not a root doc, so the unmarked path check is skipped.
+    assert findings == []
 
 
 def test_current_default_documented_examples_validate():
