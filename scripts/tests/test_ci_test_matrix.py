@@ -667,7 +667,7 @@ def test_current_policy_survives_the_october_31_cliff():
         assert waiver.issue == 293, skill_id
     ibd = policy.coverage_waivers.get("ibd-distribution-day-monitor")
     if ibd is not None:
-        assert ibd.floor == 44
+        assert ibd.floor == 51
     value = policy.coverage_waivers.get("value-dividend-screener")
     if value is not None:
         assert value.floor == 34
