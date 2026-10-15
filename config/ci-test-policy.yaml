@@ -17,20 +17,8 @@ coverage:
       - position-sizer
       - trader-memory-core
   waivers:
-    breadth-chart-analyst:
-      floor: 25
-      target: 70
-      expires_on: "2027-01-31"
-      issue: 293
-      reason: Re-dated 2026-10-10 on CI evidence (runs 38043262308/37331242157/37257679899, identical per-skill results); floor is floor(actual) unless that leaves under 0.1pt of headroom.
     downtrend-duration-analyzer:
       floor: 46
-      target: 70
-      expires_on: "2027-01-31"
-      issue: 293
-      reason: Re-dated 2026-10-10 on CI evidence (runs 38043262308/37331242157/37257679899, identical per-skill results); floor is floor(actual) unless that leaves under 0.1pt of headroom.
-    edge-candidate-agent:
-      floor: 40
       target: 70
       expires_on: "2027-01-31"
       issue: 293
@@ -75,6 +63,11 @@ matrix:
     requirements:
     - pandas-market-calendars==5.2.2
     reason: Exercise the pinned shared cash-equity calendar contract.
+  breadth-chart-analyst:
+    requirements:
+    - opencv-python-headless
+    - pillow
+    reason: Install the image libraries the chart detectors and extractor import; versions come from uv.lock.
   canslim-screener:
     requirements:
     - beautifulsoup4

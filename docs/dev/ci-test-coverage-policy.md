@@ -165,13 +165,28 @@ through `matrix.canslim-screener.test_paths`, so `test_canslim_fixes.py` and
 `test_leadership_rs.py` never ran in CI. The pin is removed and CI now runs the
 whole `scripts/tests` directory.
 
-Four waivers remain, all expiring on 2027-01-31 under Issue #293:
+### Status as of 2026-10-15 (third batch)
+
+Two more waivers are removed: `breadth-chart-analyst` and
+`edge-candidate-agent`. Their local measurements, taken with the same
+`ci_test_matrix.py run` command as CI, are 99.24% and 99.25%. The PR-head CI
+run is authoritative.
+
+`breadth-chart-analyst` had two gaps that hid its tests in CI:
+
+- Its `conftest.py` pointed the sample-chart fixtures at `scripts/assets/`
+  instead of the skill's `assets/`, so every test that uses a sample chart was
+  silently skipped. The path is fixed and those tests now run.
+- CI's locked environment lacked `opencv-python-headless` and Pillow, so the
+  detectors were only imported through their `cv2` ImportError fallback. Both
+  are now in the `ci` extra (versions from `uv.lock`) and listed under
+  `matrix.breadth-chart-analyst.requirements`.
+
+Two waivers remain, both expiring on 2027-01-31 under Issue #293:
 
 | Skill | CI actual | Floor |
 |---|---:|---:|
-| `breadth-chart-analyst` | 25.76% | 25 |
 | `downtrend-duration-analyzer` | 46.24% | 46 |
-| `edge-candidate-agent` | 41.17% | 40 |
 | `skill-designer` | 47.46% | 47 |
 
 ### Expiry warnings
