@@ -143,7 +143,7 @@ Collection time above is not the measurement time of every input. A matching gen
 
 | Input | Measured commit | Measured / run updated at | Source |
 |---|---|---|---|
-| catalog | b29c6dfc2d4dc82bdfcfc13891e490863283405f | 2026-10-17T07:11:43Z | skills-index.yaml; config/ci-test-policy.yaml; examples/workflows/replay-coverage.yaml |
+| catalog | not-yet-measured | not-yet-measured | not-yet-measured |
 | per\_skill\_coverage\_pct | b29c6dfc2d4dc82bdfcfc13891e490863283405f | 2026-10-16T11:46:22Z | https://github.com/tradermonty/claude-trading-skills/actions/runs/38895293520/artifacts/12043243687 |
 | beta\_since | not-yet-measured | not-yet-measured | not-yet-measured |
 | dual\_axis\_score\_distribution | not-yet-measured | not-yet-measured | not-yet-measured |
